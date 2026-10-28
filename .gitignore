@@ -1,10 +1,15 @@
-# Default ignored files
-/shelf/
-/.idea/workspace.xml
-# Editor-based HTTP Client requests
-/httpRequests/
-# Ignored default folder with query files
-/queries/
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
+# Skompilowane pliki (kod bajtowy)
+out/
+target/
+build/
+*.class
+
+# Konfiguracja środowiska IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Pliki systemowe (opcjonalnie, np. dla macOS/Windows)
+.DS_Store
+Thumbs.db
