@@ -114,7 +114,20 @@ public class Branch {
         return Collections.max(laptopList, Comparator.comparingDouble(Laptop::getPrice));
     }
 
+    public String getBranchName() {
+        return branchName;
+    }
 
+    public int getLaptopCount() {
+        return laptopList.size();
+    }
 
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public boolean isEmpty() {
+        return laptopList.isEmpty();
+    }
 
 }
