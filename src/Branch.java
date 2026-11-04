@@ -1,0 +1,120 @@
+
+import java.util.*;
+
+public class Branch {
+    private String branchName;
+    private List<Laptop> laptopList;
+    private int maxCapacity;
+
+    public Branch(String branchName, int maxCapacity){
+        this.branchName = branchName;
+        this.laptopList = new ArrayList<>();
+        this.maxCapacity = maxCapacity;
+    }
+
+    public void addLaptop(Laptop laptop){
+        if (laptopList.size() >= maxCapacity){
+            System.err.println("Przekroczono liczbę laptopów");
+            return;
+        }
+        for (Laptop l : laptopList ){
+            if (l.compareTo(laptop) == 0){
+                System.out.println("Podany laptop istnieje już w bazie");
+                return;
+            }
+        }
+        laptopList.add(laptop);
+    }
+
+    public void removeLaptop(Laptop laptop){
+
+        boolean removed = laptopList.removeIf(l -> l.compareTo(laptop) == 0);
+        if (removed){
+            System.out.println("Laptop pomyślnie usunięty");
+        }else {
+            System.out.println("Laptop nie został odnaleziony");
+        }
+    }
+
+    public void sellLaptop(Laptop laptop){
+        boolean sold= laptopList.removeIf(s -> s.compareTo(laptop) == 0);
+        if (sold){
+            System.out.println("Laptop został sprzedany");
+        }else {
+            System.out.println("Laptop nie został odnaleziony");
+        }
+    }
+
+    public void changeCondition(Laptop laptop, LaptopCondition condition){
+        laptop.setCondition(condition);
+        System.out.println("Zmieniono kondycję laptopa na: " + condition.toString());
+    }
+
+    public void changeYear(Laptop laptop, int year){
+        laptop.setYear(year);
+        System.out.println("Zmieniono rok produkcji laptopa na: " + year);
+    }
+
+    public int countByCondition(LaptopCondition condition){
+        int c = 0;
+        for (Laptop l : laptopList){
+            if(l.getCondition() == condition){
+                c++;
+            }
+        }
+        return c;
+    }
+
+    public List<Laptop> sortByName(){
+        List<Laptop> sortedByName = new ArrayList<>(laptopList);
+        Collections.sort(sortedByName);
+        return sortedByName;
+    }
+
+    public List<Laptop> sortByPrice(){
+        List<Laptop> sortedByPrice = new ArrayList<>(laptopList);
+        sortedByPrice.sort(Comparator.comparingDouble(Laptop::getPrice));
+        return sortedByPrice;
+    }
+
+    public List<Laptop> search(String model){
+        List<Laptop> names = new ArrayList<>();
+        for (Laptop l : laptopList){
+            if (l.getModel().equalsIgnoreCase(model)){
+                names.add(l);
+            }
+        }
+
+        return names;
+    }
+
+    public List<Laptop> searchPartial(String text){
+        List<Laptop> names = new ArrayList<>();
+        for (Laptop l : laptopList){
+            if (l.getModel().toLowerCase().contains(text.toLowerCase())){
+                names.add(l);
+            }
+        }
+
+        return names;
+
+    }
+
+    public void summary(){
+        System.out.println("Oto zestawienie wszystkich laptopów: ");
+        for (Laptop l : laptopList){
+            l.print();
+        }
+    }
+
+    public Laptop max(){
+        if (laptopList.isEmpty()) {
+            return null;
+        }
+        return Collections.max(laptopList, Comparator.comparingDouble(Laptop::getPrice));
+    }
+
+
+
+
+}
