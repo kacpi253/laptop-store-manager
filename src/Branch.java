@@ -114,6 +114,24 @@ public class Branch {
         return Collections.max(laptopList, Comparator.comparingDouble(Laptop::getPrice));
     }
 
+    public double totalValue() {
+        double total = 0.0;
+        for (Laptop l : laptopList) {
+            total += l.getPrice();
+        }
+        return total;
+    }
+
+    public int countByBrand(String brand) {
+        int count = 0;
+        for (Laptop l : laptopList) {
+            if (l.getBrand().equalsIgnoreCase(brand)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public String getBranchName() {
         return branchName;
     }

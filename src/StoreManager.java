@@ -41,7 +41,33 @@ public class StoreManager {
     }
 
     public Branch getBranch(String name) {
+
         return branches.get(name);
+    }
+
+    public void transferLaptop(Laptop laptop, String fromBranch, String toBranch) {
+        Branch from = branches.get(fromBranch);
+        Branch to = branches.get(toBranch);
+
+        if (from != null && to != null && to.getLaptopCount() < to.getMaxCapacity()) {
+            from.removeLaptop(laptop);
+            to.addLaptop(laptop);
+        }else {
+            System.out.println("Nie można przenieść laptopa (Brak oddziału lub miejsca)");
+        }
+    }
+
+    public double totalValue(String branchName) {
+        Branch b = branches.get(branchName);
+        return (b != null) ? b.totalValue() : 0;
+    }
+
+    public int countByBrand(String brand) {
+        int count = 0;
+        for (Branch b : branches.values()) {
+            count += b.countByBrand(brand);
+        }
+        return count;
     }
 
 }
