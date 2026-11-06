@@ -52,5 +52,30 @@ public class Main {
 
         System.out.println("\nPróba transferu do nieistniejącego oddziału:");
         manager.transferLaptop(laptop2, "Kraków Główny", "Wrocław");
+
+
+        System.out.println("\n--- TEST: TRANSFER STARSZEGO Z DWÓCH NAJDROŻSZYCH ---");
+
+        // Przygotowanie danych testowych w Krakowie:
+        // 1. MacBook Pro 14 (8500 PLN, 2023) - najdroższy
+        // 2. Dell XPS 15 (7000 PLN, 2021)    - 2. najdroższy (starszy!)
+        // 3. ThinkPad T14 (3500 PLN, 2022)   - najtańszy (powinien zostać zignorowany)
+        Laptop laptop4 = new Laptop("XPS 15", "Dell", LaptopCondition.SPRAWNY, 2021, 7000.0, 95.0, "Windows 11", 1024);
+        krakow.addLaptop(laptop4);
+
+        System.out.println("Laptopy w Krakowie przed transferem:");
+        krakow.summary();
+
+        // Wywołanie metody
+        System.out.println("wywolanie transeru z krakowa do warszawy:");
+        krakow.transferOldestOfTwoExpensive(warszawa);
+
+        System.out.println("\nLaptopy w Krakowie po transferze:");
+        krakow.summary();
+
+        System.out.println("\nLaptopy w Warszawie po transferze:");
+        warszawa.summary();
+
+
     }
 }

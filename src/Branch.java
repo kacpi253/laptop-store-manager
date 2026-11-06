@@ -132,6 +132,29 @@ public class Branch {
         return count;
     }
 
+    public void transferOldestOfTwoExpensive(Branch targetBranch){
+        if(targetBranch == null) {
+            System.out.println("Oddział docelowy nie istnieje");
+            return;
+        }
+        if (laptopList.size() < 2){
+            System.out.println("Oddział ma mniej niż 2 laptopy, brak możliwości wyboru");
+            return;
+        }
+        if (targetBranch.getLaptopCount() >= targetBranch.getMaxCapacity()){
+            System.out.println("Oddział docelowy nie ma wolnego miejsca! ");
+            return;
+        }
+        List<Laptop> sorted = sortByPrice();
+
+        Laptop top1 = sorted.get(sorted.size() - 1);
+        Laptop top2 = sorted.get(sorted.size() - 2);
+        Laptop chosen = (top1.getYear() <= top2.getYear() ? top1 : top2);
+        this.removeLaptop(chosen);
+        targetBranch.addLaptop(chosen);
+        System.out.println("Przeniesiono laptop: " + chosen.getModel() + " (" + chosen.getYear() + ") do oddziału " + targetBranch.getBranchName());
+
+    }
     public String getBranchName() {
         return branchName;
     }

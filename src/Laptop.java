@@ -19,6 +19,7 @@ public class Laptop implements Comparable<Laptop> {
         this.storageGB = storageGB;
 
     }
+    //metoda która wybiera 2 najdrozse laptopy, wybiera starszy i przenosi do wybraego brancha
 
     @Override
     public String toString(){
