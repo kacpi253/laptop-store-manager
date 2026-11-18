@@ -14,34 +14,28 @@ public class Branch {
 
     public void addLaptop(Laptop laptop){
         if (laptopList.size() >= maxCapacity){
-            System.err.println("Przekroczono liczbę laptopów");
-            return;
+            throw new BranchFullException("Przekrocozno liczbę laptopów");
         }
         for (Laptop l : laptopList ){
             if (l.compareTo(laptop) == 0){
-                System.out.println("Podany laptop istnieje już w bazie");
-                return;
+                throw new DuplicateLaptopException("Podany laptop istnieje już w bazie oddziału!");
             }
         }
         laptopList.add(laptop);
     }
 
-    public void removeLaptop(Laptop laptop){
+    public void removeLaptop(Laptop laptop) {
 
         boolean removed = laptopList.removeIf(l -> l.compareTo(laptop) == 0);
-        if (removed){
-            System.out.println("Laptop pomyślnie usunięty");
-        }else {
-            System.out.println("Laptop nie został odnaleziony");
+        if (!removed) {
+            throw new LaptopNotFoundException("Nie znaleziono laptopa: " + laptop.getModel());
         }
     }
 
     public void sellLaptop(Laptop laptop){
         boolean sold= laptopList.removeIf(s -> s.compareTo(laptop) == 0);
-        if (sold){
-            System.out.println("Laptop został sprzedany");
-        }else {
-            System.out.println("Laptop nie został odnaleziony");
+        if (!sold) {
+            throw new LaptopNotFoundException("Nie znaleziono laptopa do sprzedaży: " + laptop.getModel());
         }
     }
 
@@ -89,14 +83,15 @@ public class Branch {
     }
 
     public List<Laptop> searchPartial(String text){
-        List<Laptop> names = new ArrayList<>();
+        List<Laptop> results = new ArrayList<>();
         for (Laptop l : laptopList){
-            if (l.getModel().toLowerCase().contains(text.toLowerCase())){
-                names.add(l);
+            if (l.getModel().toLowerCase().contains(text.toLowerCase()) ||
+                    l.getBrand().toLowerCase().contains(text.toLowerCase())){
+                results.add(l);
             }
         }
 
-        return names;
+        return results;
 
     }
 
@@ -132,26 +127,25 @@ public class Branch {
         return count;
     }
 
-    public void transferOldestOfTwoExpensive(Branch targetBranch){
+    public void transferOldestOfTwoExpensive(Branch targetBranch) throws LaptopNotFoundException, BranchFullException, DuplicateLaptopException {
         if(targetBranch == null) {
-            System.out.println("Oddział docelowy nie istnieje");
-            return;
+            throw new LaptopNotFoundException("Podany oddział nie istnieje.");
         }
-        if (laptopList.size() < 2){
-            System.out.println("Oddział ma mniej niż 2 laptopy, brak możliwości wyboru");
-            return;
+        if (laptopList.size() < 2) {
+            throw new LaptopNotFoundException("Oddział ma mniej niż 2 laptopy, brak możliwości wyboru.");
         }
-        if (targetBranch.getLaptopCount() >= targetBranch.getMaxCapacity()){
-            System.out.println("Oddział docelowy nie ma wolnego miejsca! ");
-            return;
+        if (targetBranch.getLaptopCount() >= targetBranch.getMaxCapacity()) {
+            throw new BranchFullException("Oddział docelowy nie ma wolnego miejsca.");
         }
         List<Laptop> sorted = sortByPrice();
 
         Laptop top1 = sorted.get(sorted.size() - 1);
         Laptop top2 = sorted.get(sorted.size() - 2);
         Laptop chosen = (top1.getYear() <= top2.getYear() ? top1 : top2);
-        this.removeLaptop(chosen);
+
         targetBranch.addLaptop(chosen);
+        this.removeLaptop(chosen);
+
         System.out.println("Przeniesiono laptop: " + chosen.getModel() + " (" + chosen.getYear() + ") do oddziału " + targetBranch.getBranchName());
 
     }
@@ -169,6 +163,15 @@ public class Branch {
 
     public boolean isEmpty() {
         return laptopList.isEmpty();
+    }
+
+    public List<Laptop> getLaptopList() {
+        return laptopList;
+    }
+
+    public double getCurrentLoad() {
+        if (maxCapacity == 0) return 0.0;
+        return (double) laptopList.size() / maxCapacity * 100.0;
     }
 
 }

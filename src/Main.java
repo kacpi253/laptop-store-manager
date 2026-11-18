@@ -3,6 +3,7 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args){
+        try{
         Laptop laptop1 = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY, 2022, 3500.0, 92.5, "Windows 11", 512);
         Laptop laptop2 = new Laptop("MacBook Pro 14", "Apple", LaptopCondition.SPRAWNY, 2023, 8500.0, 100.0, "macOS", 512);
         Laptop laptop3 = new Laptop("IdeaPad 3", "Lenovo", LaptopCondition.USZKODZONY, 2020, 1200.0, 75.0, "Windows 10", 256);
@@ -77,5 +78,8 @@ public class Main {
         warszawa.summary();
 
 
+        } catch (InvalidPriceException | BranchFullException | DuplicateLaptopException | LaptopNotFoundException e) {
+            System.err.println("Błąd operacji: " + e.getMessage());
+        }
     }
 }

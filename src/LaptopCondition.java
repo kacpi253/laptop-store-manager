@@ -22,5 +22,11 @@ public enum LaptopCondition {
     public String toString() {
         return "W trakcie testów";
     }
+    },
+    ZAREZERWOWANY{
+        @Override
+        public String toString() {
+            return "Zarezerwowany";
+        }
     }
 }

@@ -45,15 +45,20 @@ public class StoreManager {
         return branches.get(name);
     }
 
-    public void transferLaptop(Laptop laptop, String fromBranch, String toBranch) {
+    public void transferLaptop(Laptop laptop, String fromBranch, String toBranch)
+            throws LaptopNotFoundException, BranchFullException, DuplicateLaptopException {
         Branch from = branches.get(fromBranch);
         Branch to = branches.get(toBranch);
 
-        if (from != null && to != null && to.getLaptopCount() < to.getMaxCapacity()) {
-            from.removeLaptop(laptop);
+        if (from == null || to == null){
+            throw new LaptopNotFoundException("Oddział źródłowy lub docelowy nie istnieje.");
+        }
+        from.removeLaptop(laptop);
+        try {
             to.addLaptop(laptop);
-        }else {
-            System.out.println("Nie można przenieść laptopa (Brak oddziału lub miejsca)");
+        } catch (BranchFullException | DuplicateLaptopException e){
+            from.addLaptop(laptop); // Cofamy usunięcie, jeśli dodanie do celu się nie udało
+            throw e;
         }
     }
 
@@ -68,6 +73,9 @@ public class StoreManager {
             count += b.countByBrand(brand);
         }
         return count;
+    }
+    public List<Branch> getAllBranches() {
+        return new ArrayList<>(branches.values());
     }
 
 }

@@ -8,7 +8,11 @@ public class Laptop implements Comparable<Laptop> {
     private String operatingSystem;
     private int storageGB;
 
-    public Laptop (String model, String brand, LaptopCondition condition, int year, double price, double batteryHealth, String operatingSystem, int storageGB){
+    public Laptop (String model, String brand, LaptopCondition condition, int year, double price, double batteryHealth, String operatingSystem, int storageGB)
+        throws InvalidPriceException{
+            if(price < 0){
+                throw new InvalidPriceException("Cena laptopa nie może być mneijsza od 0");
+            }
         this.model = model;
         this.brand = brand;
         this.condition = condition;
@@ -73,7 +77,10 @@ public class Laptop implements Comparable<Laptop> {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(double price) throws InvalidPriceException {
+        if (price < 0){
+            throw new InvalidPriceException("Cena laptopa nie może byc mniejsza od 0");
+        }
         this.price = price;
     }
 
