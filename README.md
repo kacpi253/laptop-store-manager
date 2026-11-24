@@ -1,58 +1,60 @@
 # Laptop Store Manager 💻
 
-Profesjonalna aplikacja desktopowa w języku Java do kompleksowego zarządzania siecią sklepów komputerowych. Projekt został stworzony z myślą o solidnej architekturze obiektowej, dobrych praktykach programistycznych oraz **niezawodności potwierdzonej testami jednostkowymi**. 
+> **Note:** This is an ongoing university project, currently in active development.
 
-Aplikacja wykorzystuje interfejs graficzny oparty na bibliotece **Swing** i posiada wbudowany podział na role (Administrator, Klient), umożliwiając zarządzanie inwentarzem oddziałów oraz symulację procesów sprzedażowych.
+A professional desktop application written in Java for comprehensive management of a computer store network. The project is designed with a strong focus on solid object-oriented architecture, best programming practices, and **reliability proven by comprehensive unit tests**. 
 
-## 🚀 Główne funkcjonalności
+The application uses a graphical user interface based on the **Swing** library and features role-based access control (Administrator, Client), allowing for inventory management across multiple branches and sales simulation.
 
-- **Zarządzanie Oddziałami (Branches):**
-  - Tworzenie i usuwanie oddziałów sklepu.
-  - Monitorowanie pojemności oddziału w czasie rzeczywistym.
-  - Generowanie zestawień i statystyk zapełnienia placówek.
-- **Zarządzanie Asortymentem (Laptops):**
-  - Dodawanie, usuwanie i sprzedaż laptopów.
-  - Monitorowanie stanu technicznego urządzeń (Sprawny, Uszkodzony, W naprawie).
-  - Wyszukiwanie (dokładne i częściowe) po modelu oraz marce.
-  - Sortowanie asortymentu według nazwy i ceny.
-  - Obliczanie całkowitej wartości magazynu.
-- **Złożone operacje biznesowe:**
-  - Bezpieczny transfer sprzętu pomiędzy oddziałami z obsługą cofania transakcji (rollback) w przypadku błędu.
-  - Złożone algorytmy, np. przenoszenie najstarszego z dwóch najdroższych laptopów między wybranymi filiami.
-- **Graficzny Interfejs Użytkownika (GUI):**
-  - Dedykowane panele dla różnych typów użytkowników (Logowanie, AdminFrame, ClientFrame).
-  - Wykorzystanie autorskich modeli tabel (`GenericTableModel`).
+## 🚀 Key Features
 
-## 🧪 Testy Jednostkowe (Unit Testing)
+- **Branch Management:**
+  - Create and remove store branches.
+  - Monitor branch capacity in real-time.
+  - Generate occupancy reports and statistics.
+- **Inventory Management (Laptops):**
+  - Add, remove, and sell laptops.
+  - Track device condition (Working, Damaged, In repair).
+  - Exact and partial search by model and brand.
+  - Sort inventory by name and price.
+  - Calculate total inventory value.
+- **Complex Business Operations:**
+  - Safe hardware transfer between branches with transaction rollback in case of errors.
+  - Advanced algorithms, e.g., transferring the oldest of the two most expensive laptops between selected branches.
+- **Graphical User Interface (GUI):**
+  - Dedicated panels for different user roles (Login, AdminFrame, ClientFrame).
+  - Utilization of custom table models (`GenericTableModel`).
 
-Kluczowym elementem projektu jest zapewnienie jego bezawaryjności. Logika biznesowa została pokryta **rozbudowanymi testami jednostkowymi** przy użyciu frameworka **JUnit 5**.
+## 🧪 Unit Testing
 
-Testy gwarantują poprawne zachowanie aplikacji, w tym:
-- **Obsługę wyjątków biznesowych:** 
-  - `BranchFullException` – Próba dodania sprzętu do przepełnionego oddziału.
-  - `DuplicateLaptopException` – Zabezpieczenie przed duplikatem laptopa w bazie.
-  - `LaptopNotFoundException` – Bezpieczna obsługa brakujących urządzeń.
-  - `InvalidPriceException` – Walidacja cen sprzętu.
-- **Testowanie algorytmów i logiki:**
-  - Weryfikacja poprawnego obliczania obciążenia/zapełnienia oddziałów.
-  - Testowanie filtrów asortymentu (stan techniczny, wyszukiwanie częściowe fraz).
-  - Weryfikacja list po sortowaniu.
-  - Bezpieczeństwo transakcji (testowanie stanu po rzuceniu wyjątku podczas operacji przenoszenia towaru).
+A critical focus of this project is ensuring fault tolerance and reliability. The business logic is covered by an **extensive suite of unit tests** using the **JUnit 5** framework.
 
-## 🛠️ Technologie
+Tests guarantee correct application behavior, including:
+- **Business Exception Handling:** 
+  - `BranchFullException` – Attempting to add equipment to an already full branch.
+  - `DuplicateLaptopException` – Preventing duplicate laptops in the database.
+  - `LaptopNotFoundException` – Safe handling of missing devices.
+  - `InvalidPriceException` – Equipment price validation.
+- **Testing Algorithms and Logic:**
+  - Verification of correct branch load/occupancy calculations.
+  - Testing inventory filters (technical condition, partial string matching).
+  - Verification of sorted lists.
+  - Transaction safety (testing state rollback after an exception is thrown during goods transfer).
 
-- **Język:** Java 17+
-- **Interfejs Graficzny:** Java Swing (AWT)
-- **Testowanie:** JUnit 5 (Jupiter)
-- **Paradygmaty:** Programowanie Obiektowe (OOP), Architektura zorientowana na domeny (Fasady)
+## 🛠️ Technologies
 
-## 💻 Uruchomienie projektu
+- **Language:** Java 17+
+- **GUI:** Java Swing (AWT)
+- **Testing:** JUnit 5 (Jupiter)
+- **Paradigms:** Object-Oriented Programming (OOP), Facade Design Pattern
 
-1. Sklonuj repozytorium na swój dysk lokalny.
-2. Otwórz projekt w preferowanym środowisku IDE (np. IntelliJ IDEA, Eclipse).
-3. Upewnij się, że w konfiguracji projektu jest ustawiona odpowiednia wersja Java SDK.
-4. Uruchom klasę główną `Main.java` znajdującą się w katalogu `src`.
-5. *Aby uruchomić testy:* Uruchom pakiet `test/` z wykorzystaniem wbudowanego w IDE narzędzia (np. JUnit Test Runner).
+## 💻 How to Run
+
+1. Clone the repository to your local machine.
+2. Open the project in your preferred IDE (e.g., IntelliJ IDEA, Eclipse).
+3. Ensure the appropriate Java SDK version is configured in your project settings.
+4. Run the main class `Main.java` located in the `src` directory.
+5. *To run tests:* Execute the `test/` package using your IDE's built-in test runner.
 
 ---
-*Projekt został zrealizowany w ramach rozwijania kompetencji z zakresu języka Java, inżynierii oprogramowania oraz rygorystycznego podejścia do testowania kodu.*
+*This project is being developed as a university assignment to expand competencies in Java programming, software engineering, and rigorous code testing practices.*
