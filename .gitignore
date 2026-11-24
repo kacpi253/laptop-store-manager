@@ -13,3 +13,4 @@ build/
 # Pliki systemowe (opcjonalnie, np. dla macOS/Windows)
 .DS_Store
 Thumbs.db
+*.zip

@@ -1,0 +1,1886 @@
+﻿=== PLIK: src\AdminFrame.java ===
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+public class AdminFrame extends BaseStoreFrame {
+
+    public AdminFrame(StoreFacade facade, Runnable onLogout) {
+        super("Sklep z laptopami - Panel Administratora", "Administrator", facade, onLogout);
+    }
+
+    @Override
+    protected void setupActionPanel(JPanel actionPanel) {
+        // Układ 2 wiersze x 4 kolumny, żeby 7 przycisków zawsze wyglądało równo
+        actionPanel.setLayout(new GridLayout(2, 4, 8, 8));
+        actionPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
+
+        JButton addBranchBtn = new JButton("Dodaj oddział");
+        JButton removeBranchBtn = new JButton("Usuń oddział");
+        JButton addLaptopBtn = new JButton("Dodaj laptop");
+        JButton removeLaptopBtn = new JButton("Usuń laptop");
+        JButton editConditionBtn = new JButton("Edytuj stan");
+        JButton editPriceBtn = new JButton("Edytuj cenę");
+        JButton contactRequestsBtn = new JButton("Prośby o kontakt");
+
+        addBranchBtn.addActionListener(e -> handleAddBranch());
+        removeBranchBtn.addActionListener(e -> handleRemoveBranch());
+        addLaptopBtn.addActionListener(e -> handleAddLaptop());
+        removeLaptopBtn.addActionListener(e -> handleRemoveLaptop());
+        editConditionBtn.addActionListener(e -> handleEditCondition());
+        editPriceBtn.addActionListener(e -> handleEditPrice());
+        contactRequestsBtn.addActionListener(e -> handleShowContactRequests());
+
+        actionPanel.add(addBranchBtn);
+        actionPanel.add(removeBranchBtn);
+        actionPanel.add(addLaptopBtn);
+        actionPanel.add(removeLaptopBtn);
+        actionPanel.add(editConditionBtn);
+        actionPanel.add(editPriceBtn);
+        actionPanel.add(contactRequestsBtn);
+    }
+
+    private void handleAddBranch() {
+        JTextField nameField = new JTextField();
+        JTextField capacityField = new JTextField();
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 5, 5));
+        form.add(new JLabel("Nazwa oddziału:"));
+        form.add(nameField);
+        form.add(new JLabel("Maks. pojemność:"));
+        form.add(capacityField);
+
+        int result = JOptionPane.showConfirmDialog(this, form, "Dodaj nowy oddział",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            String name = nameField.getText().trim();
+            if (name.isEmpty()) {
+                showError("Nazwa oddziału nie może być pusta.");
+                return;
+            }
+            try {
+                int capacity = Integer.parseInt(capacityField.getText().trim());
+                if (capacity <= 0) {
+                    showError("Pojemność musi być liczbą większą od 0.");
+                    return;
+                }
+                facade.addBranch(name, capacity);
+                reloadBranches();
+            } catch (NumberFormatException ex) {
+                showError("Pojemność musi być poprawną liczbą całkowitą.");
+            }
+        }
+    }
+
+    private void handleRemoveBranch() {
+        Branch selected = branchTablePanel.getSelectedItem();
+        if (selected == null) {
+            showError("Zaznacz oddział, który chcesz usunąć.");
+            return;
+        }
+        facade.removeBranch(selected.getBranchName());
+        reloadBranches();
+    }
+
+    private void handleAddLaptop() {
+        Branch selectedBranch = branchTablePanel.getSelectedItem();
+        if (selectedBranch == null) {
+            showError("Najpierw zaznacz oddział, do którego chcesz dodać laptopa.");
+            return;
+        }
+
+        JTextField brandField = new JTextField();
+        JTextField modelField = new JTextField();
+        JComboBox<LaptopCondition> conditionBox = new JComboBox<>(LaptopCondition.values());
+        JTextField yearField = new JTextField("2023");
+        JTextField priceField = new JTextField("2500.0");
+        JTextField batteryField = new JTextField("90.0");
+        JTextField osField = new JTextField("Windows 11");
+        JTextField storageField = new JTextField("512");
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 5, 5));
+        form.add(new JLabel("Marka:"));
+        form.add(brandField);
+        form.add(new JLabel("Model:"));
+        form.add(modelField);
+        form.add(new JLabel("Stan:"));
+        form.add(conditionBox);
+        form.add(new JLabel("Rok produkcji:"));
+        form.add(yearField);
+        form.add(new JLabel("Cena (PLN):"));
+        form.add(priceField);
+        form.add(new JLabel("Kondycja baterii (%):"));
+        form.add(batteryField);
+        form.add(new JLabel("System operacyjny:"));
+        form.add(osField);
+        form.add(new JLabel("Dysk (GB):"));
+        form.add(storageField);
+
+        int result = JOptionPane.showConfirmDialog(this, form,
+                "Dodaj laptop do: " + selectedBranch.getBranchName(),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                String brand = brandField.getText().trim();
+                String model = modelField.getText().trim();
+                LaptopCondition condition = (LaptopCondition) conditionBox.getSelectedItem();
+                int year = Integer.parseInt(yearField.getText().trim());
+                double price = Double.parseDouble(priceField.getText().trim());
+                double battery = Double.parseDouble(batteryField.getText().trim());
+                String os = osField.getText().trim();
+                int storage = Integer.parseInt(storageField.getText().trim());
+
+                if (brand.isEmpty() || model.isEmpty()) {
+                    showError("Marka i model nie mogą być puste.");
+                    return;
+                }
+
+                // Uwaga na kolejność argumentów Twojego konstruktora Laptop: najpierw model, potem brand
+                Laptop newLaptop = new Laptop(model, brand, condition, year, price, battery, os, storage);
+                facade.addLaptopToBranch(selectedBranch, newLaptop);
+
+                branchTablePanel.refresh();
+                refreshLaptopTable();
+            } catch (NumberFormatException ex) {
+                showError("Błędny format liczby (sprawdź rok, cenę, baterię lub dysk).");
+            } catch (InvalidPriceException | BranchFullException | DuplicateLaptopException | LaptopNotFoundException ex) {
+                // Przechwycenie wszystkich naszych własnych wyjątków checked i pokazanie ich w JOptionPane
+                showError(ex.getMessage());
+            }
+        }
+    }
+
+    private void handleRemoveLaptop() {
+        Branch selectedBranch = branchTablePanel.getSelectedItem();
+        Laptop selectedLaptop = laptopTablePanel.getSelectedItem();
+
+        try {
+            facade.removeLaptopFromBranch(selectedBranch, selectedLaptop);
+            branchTablePanel.refresh();
+            refreshLaptopTable();
+        } catch (LaptopNotFoundException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    private void handleEditCondition() {
+        Laptop selectedLaptop = laptopTablePanel.getSelectedItem();
+        if (selectedLaptop == null) {
+            showError("Zaznacz laptopa, którego stan chcesz zmienić.");
+            return;
+        }
+
+        LaptopCondition newCondition = (LaptopCondition) JOptionPane.showInputDialog(
+                this,
+                "Wybierz nowy stan dla: " + selectedLaptop.getBrand() + " " + selectedLaptop.getModel(),
+                "Edycja stanu",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                LaptopCondition.values(),
+                selectedLaptop.getCondition()
+        );
+
+        if (newCondition != null) {
+            try {
+                facade.updateLaptopCondition(selectedLaptop, newCondition);
+                refreshLaptopTable();
+            } catch (LaptopNotFoundException ex) {
+                showError(ex.getMessage());
+            }
+        }
+    }
+
+    private void handleEditPrice() {
+        Laptop selectedLaptop = laptopTablePanel.getSelectedItem();
+        if (selectedLaptop == null) {
+            showError("Zaznacz laptopa, którego cenę chcesz zmienić.");
+            return;
+        }
+
+        String input = JOptionPane.showInputDialog(
+                this,
+                "Podaj nową cenę (PLN) dla: " + selectedLaptop.getBrand() + " " + selectedLaptop.getModel(),
+                selectedLaptop.getPrice()
+        );
+
+        if (input != null) {
+            try {
+                double newPrice = Double.parseDouble(input.trim());
+                facade.updateLaptopPrice(selectedLaptop, newPrice);
+                refreshLaptopTable();
+            } catch (NumberFormatException ex) {
+                showError("Wprowadź poprawną wartość liczbową.");
+            } catch (LaptopNotFoundException | InvalidPriceException ex) {
+                showError(ex.getMessage());
+            }
+        }
+    }
+
+    private void handleShowContactRequests() {
+        List<String> requests = facade.getContactRequests();
+        if (requests.isEmpty()) {
+            showInfo("Brak nowych próśb o kontakt od klientów.");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder("Zgłoszenia od klientów:\n\n");
+        for (int i = 0; i < requests.size(); i++) {
+            sb.append(i + 1).append(". ").append(requests.get(i)).append("\n");
+        }
+        showInfo(sb.toString());
+    }
+}
+
+
+
+=== PLIK: src\BaseStoreFrame.java ===
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+public abstract class BaseStoreFrame extends JFrame {
+    protected final StoreFacade facade;
+    protected final GenericTablePanel<Branch> branchTablePanel;
+    protected final GenericTablePanel<Laptop> laptopTablePanel;
+
+    private final JTextField filterTextField;
+    private final JComboBox<Object> conditionComboBox;
+    private final Runnable onLogout;
+
+    public BaseStoreFrame(String title, String roleLabel, StoreFacade facade, Runnable onLogout) {
+        super(title);
+        this.facade = facade;
+        this.onLogout = onLogout;
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(950, 650);
+        setLocationRelativeTo(null); // Wyśrodkowanie okna na ekranie
+        setLayout(new BorderLayout(10, 10));
+
+        // 1. GÓRNY PASEK (rola + wylogowanie)
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 0, 12));
+        JLabel userLabel = new JLabel("Zalogowano jako: " + roleLabel);
+        userLabel.setFont(userLabel.getFont().deriveFont(Font.BOLD, 14f));
+
+        JButton logoutButton = new JButton("Wyloguj");
+        logoutButton.addActionListener(e -> {
+            dispose(); // Zamyka bieżące okno
+            if (this.onLogout != null) {
+                this.onLogout.run(); // Wraca do okna logowania z tą samą Fasadą
+            }
+        });
+        headerPanel.add(userLabel, BorderLayout.WEST);
+        headerPanel.add(logoutButton, BorderLayout.EAST);
+        add(headerPanel, BorderLayout.NORTH);
+
+        // 2. TABELA ODDZIAŁÓW (nasz generyczny komponent dla typu Branch)
+        branchTablePanel = new GenericTablePanel<>(
+                "Oddziały sklepu",
+                new String[]{"Nazwa oddziału", "Liczba laptopów", "Pojemność", "Zapełnienie (%)"},
+                List.of(
+                        Branch::getBranchName,
+                        Branch::getLaptopCount,
+                        Branch::getMaxCapacity,
+                        b -> String.format("%.1f%%", b.getCurrentLoad())
+                )
+        );
+
+        // Przycisk sortowania oddziałów po aktualnym zapełnieniu (przekazanie referencji listy)
+        JButton sortBranchesButton = new JButton("Sortuj oddziały wg zapełnienia");
+        sortBranchesButton.addActionListener(e -> {
+            facade.sortBranchesByLoad(branchTablePanel.getData());
+            branchTablePanel.refresh();
+        });
+
+        JPanel branchTopSection = new JPanel(new BorderLayout(5, 5));
+        branchTopSection.add(branchTablePanel, BorderLayout.CENTER);
+        JPanel branchSortBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        branchSortBar.add(sortBranchesButton);
+        branchTopSection.add(branchSortBar, BorderLayout.SOUTH);
+
+        // 3. PASEK FILTRÓW + TABELA LAPTOPÓW (ten sam generyczny komponent dla typu Laptop)
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        filterPanel.add(new JLabel("Filtr (model/marka + Enter):"));
+
+        filterTextField = new JTextField(18);
+        // ActionListener w JTextField uruchamia się po naciśnięciu klawisza Enter
+        filterTextField.addActionListener(e -> refreshLaptopTable());
+        filterPanel.add(filterTextField);
+
+        filterPanel.add(new JLabel("Stan:"));
+        conditionComboBox = new JComboBox<>();
+        conditionComboBox.addItem("Wszystkie"); // Pierwsza opcja = brak filtra stanu (null)
+        for (LaptopCondition condition : LaptopCondition.values()) {
+            conditionComboBox.addItem(condition); // JComboBox sam wywoła Twoje toString()
+        }
+        conditionComboBox.addActionListener(e -> refreshLaptopTable());
+        filterPanel.add(conditionComboBox);
+
+        laptopTablePanel = new GenericTablePanel<>(
+                "Laptopy w wybranym oddziale",
+                new String[]{"Marka", "Model", "Stan", "Rok", "Cena (PLN)", "Bateria (%)", "System", "Dysk (GB)"},
+                List.of(
+                        Laptop::getBrand,
+                        Laptop::getModel,
+                        Laptop::getCondition,
+                        Laptop::getYear,
+                        Laptop::getPrice,
+                        Laptop::getBatteryHealth,
+                        Laptop::getOperatingSystem,
+                        Laptop::getStorageGB
+                )
+        );
+
+        JPanel laptopBottomSection = new JPanel(new BorderLayout(5, 5));
+        laptopBottomSection.add(filterPanel, BorderLayout.NORTH);
+        laptopBottomSection.add(laptopTablePanel, BorderLayout.CENTER);
+
+        // Połączenie obu sekcji dzielnikiem (JSplitPane)
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, branchTopSection, laptopBottomSection);
+        splitPane.setDividerLocation(210);
+        splitPane.setResizeWeight(0.35);
+        add(splitPane, BorderLayout.CENTER);
+
+        // 4. REAKCJA NA KLIKNIĘCIE ODDZIAŁU W GÓRNEJ TABELI
+        branchTablePanel.getTable().getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                refreshLaptopTable();
+            }
+        });
+
+        // 5. DOLNY PANEL AKCJI (każda rola wypełni go po swojemu)
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        setupActionPanel(actionPanel);
+        add(actionPanel, BorderLayout.SOUTH);
+
+        // Załadowanie początkowych danych oddziałów z Fasady
+        reloadBranches();
+    }
+
+    // Metoda abstrakcyjna – klasy potomne (AdminFrame i ClientFrame) dodają tu swoje przyciski
+    protected abstract void setupActionPanel(JPanel actionPanel);
+
+    protected void reloadBranches() {
+        branchTablePanel.setData(facade.getAllBranches());
+        refreshLaptopTable();
+    }
+
+    protected void refreshLaptopTable() {
+        Branch selectedBranch = branchTablePanel.getSelectedItem();
+        String query = filterTextField.getText();
+
+        Object selectedOption = conditionComboBox.getSelectedItem();
+        // Jeśli wybrano "Wszystkie" (String), przekazujemy null; jeśli enum, rzutujemy na LaptopCondition
+        LaptopCondition condition = (selectedOption instanceof LaptopCondition)
+                ? (LaptopCondition) selectedOption
+                : null;
+
+        List<Laptop> filtered = facade.filterLaptops(selectedBranch, query, condition);
+        laptopTablePanel.setData(filtered);
+    }
+
+    // Pomocnicze okienka dialogowe do obsługi wyjątków i komunikatów
+    protected void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Błąd", JOptionPane.ERROR_MESSAGE);
+    }
+
+    protected void showInfo(String message) {
+        JOptionPane.showMessageDialog(this, message, "Informacja", JOptionPane.INFORMATION_MESSAGE);
+    }
+}
+
+
+
+=== PLIK: src\Branch.java ===
+
+import java.util.*;
+
+public class Branch {
+    private String branchName;
+    private List<Laptop> laptopList;
+    private int maxCapacity;
+
+    public Branch(String branchName, int maxCapacity){
+        this.branchName = branchName;
+        this.laptopList = new ArrayList<>();
+        this.maxCapacity = maxCapacity;
+    }
+
+    public void addLaptop(Laptop laptop){
+        if (laptopList.size() >= maxCapacity){
+            throw new BranchFullException("Przekrocozno liczbę laptopów");
+        }
+        for (Laptop l : laptopList ){
+            if (l.compareTo(laptop) == 0){
+                throw new DuplicateLaptopException("Podany laptop istnieje już w bazie oddziału!");
+            }
+        }
+        laptopList.add(laptop);
+    }
+
+    public void removeLaptop(Laptop laptop) {
+
+        boolean removed = laptopList.removeIf(l -> l.compareTo(laptop) == 0);
+        if (!removed) {
+            throw new LaptopNotFoundException("Nie znaleziono laptopa: " + laptop.getModel());
+        }
+    }
+
+    public void sellLaptop(Laptop laptop){
+        boolean sold= laptopList.removeIf(s -> s.compareTo(laptop) == 0);
+        if (!sold) {
+            throw new LaptopNotFoundException("Nie znaleziono laptopa do sprzedaży: " + laptop.getModel());
+        }
+    }
+
+    public void changeCondition(Laptop laptop, LaptopCondition condition){
+        laptop.setCondition(condition);
+        System.out.println("Zmieniono kondycję laptopa na: " + condition.toString());
+    }
+
+    public void changeYear(Laptop laptop, int year){
+        laptop.setYear(year);
+        System.out.println("Zmieniono rok produkcji laptopa na: " + year);
+    }
+
+    public int countByCondition(LaptopCondition condition){
+        int c = 0;
+        for (Laptop l : laptopList){
+            if(l.getCondition() == condition){
+                c++;
+            }
+        }
+        return c;
+    }
+
+    public List<Laptop> sortByName(){
+        List<Laptop> sortedByName = new ArrayList<>(laptopList);
+        Collections.sort(sortedByName);
+        return sortedByName;
+    }
+
+    public List<Laptop> sortByPrice(){
+        List<Laptop> sortedByPrice = new ArrayList<>(laptopList);
+        sortedByPrice.sort(Comparator.comparingDouble(Laptop::getPrice));
+        return sortedByPrice;
+    }
+
+    public List<Laptop> search(String model){
+        List<Laptop> names = new ArrayList<>();
+        for (Laptop l : laptopList){
+            if (l.getModel().equalsIgnoreCase(model)){
+                names.add(l);
+            }
+        }
+
+        return names;
+    }
+
+    public List<Laptop> searchPartial(String text){
+        List<Laptop> results = new ArrayList<>();
+        for (Laptop l : laptopList){
+            if (l.getModel().toLowerCase().contains(text.toLowerCase()) ||
+                    l.getBrand().toLowerCase().contains(text.toLowerCase())){
+                results.add(l);
+            }
+        }
+
+        return results;
+
+    }
+
+    public void summary(){
+        System.out.println("Oto zestawienie wszystkich laptopów: ");
+        for (Laptop l : laptopList){
+            l.print();
+        }
+    }
+
+    public Laptop max(){
+        if (laptopList.isEmpty()) {
+            return null;
+        }
+        return Collections.max(laptopList, Comparator.comparingDouble(Laptop::getPrice));
+    }
+
+    public double totalValue() {
+        double total = 0.0;
+        for (Laptop l : laptopList) {
+            total += l.getPrice();
+        }
+        return total;
+    }
+
+    public int countByBrand(String brand) {
+        int count = 0;
+        for (Laptop l : laptopList) {
+            if (l.getBrand().equalsIgnoreCase(brand)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public void transferOldestOfTwoExpensive(Branch targetBranch) throws LaptopNotFoundException, BranchFullException, DuplicateLaptopException {
+        if(targetBranch == null) {
+            throw new LaptopNotFoundException("Podany oddział nie istnieje.");
+        }
+        if (laptopList.size() < 2) {
+            throw new LaptopNotFoundException("Oddział ma mniej niż 2 laptopy, brak możliwości wyboru.");
+        }
+        if (targetBranch.getLaptopCount() >= targetBranch.getMaxCapacity()) {
+            throw new BranchFullException("Oddział docelowy nie ma wolnego miejsca.");
+        }
+        List<Laptop> sorted = sortByPrice();
+
+        Laptop top1 = sorted.get(sorted.size() - 1);
+        Laptop top2 = sorted.get(sorted.size() - 2);
+        Laptop chosen = (top1.getYear() <= top2.getYear() ? top1 : top2);
+
+        targetBranch.addLaptop(chosen);
+        this.removeLaptop(chosen);
+
+        System.out.println("Przeniesiono laptop: " + chosen.getModel() + " (" + chosen.getYear() + ") do oddziału " + targetBranch.getBranchName());
+
+    }
+    public String getBranchName() {
+        return branchName;
+    }
+
+    public int getLaptopCount() {
+        return laptopList.size();
+    }
+
+    public int getMaxCapacity() {
+        return maxCapacity;
+    }
+
+    public boolean isEmpty() {
+        return laptopList.isEmpty();
+    }
+
+    public List<Laptop> getLaptopList() {
+        return laptopList;
+    }
+
+    public double getCurrentLoad() {
+        if (maxCapacity == 0) return 0.0;
+        return (double) laptopList.size() / maxCapacity * 100.0;
+    }
+
+}
+
+
+
+
+=== PLIK: src\BranchFullException.java ===
+public class BranchFullException extends RuntimeException {
+    public BranchFullException(String message) {
+        super(message);
+    }
+}
+
+
+
+
+=== PLIK: src\ClientFrame.java ===
+import javax.swing.*;
+
+public class ClientFrame extends BaseStoreFrame {
+
+    public ClientFrame(StoreFacade facade, Runnable onLogout) {
+        super("Sklep z laptopami - Panel Klienta", "Klient", facade, onLogout);
+    }
+
+    @Override
+    protected void setupActionPanel(JPanel actionPanel) {
+        JButton reserveButton = new JButton("Zarezerwuj laptop");
+        JButton contactButton = new JButton("Poproś o kontakt");
+
+        reserveButton.addActionListener(e -> handleReserveLaptop());
+        contactButton.addActionListener(e -> handleContactRequest());
+
+        actionPanel.add(reserveButton);
+        actionPanel.add(contactButton);
+    }
+
+    private void handleReserveLaptop() {
+        Laptop selectedLaptop = laptopTablePanel.getSelectedItem();
+        if (selectedLaptop != null && selectedLaptop.getCondition() == LaptopCondition.ZAREZERWOWANY) {
+            showInfo("Ten laptop jest już zarezerwowany.");
+            return;
+        }
+
+        try {
+            facade.reserveLaptop(selectedLaptop);
+            refreshLaptopTable();
+            showInfo("Laptop " + selectedLaptop.getBrand() + " " + selectedLaptop.getModel() + " został zarezerwowany!");
+        } catch (LaptopNotFoundException ex) {
+            // Obsługa naszego własnego wyjątku za pomocą JOptionPane
+            showError(ex.getMessage());
+        }
+    }
+
+    private void handleContactRequest() {
+        Branch selectedBranch = branchTablePanel.getSelectedItem();
+        Laptop selectedLaptop = laptopTablePanel.getSelectedItem();
+
+        if (selectedBranch == null || selectedLaptop == null) {
+            showError("Najpierw wybierz oddział oraz konkretny laptop z tabeli.");
+            return;
+        }
+
+        String clientContact = JOptionPane.showInputDialog(
+                this,
+                "Podaj swój telefon lub e-mail w sprawie: " + selectedLaptop.getBrand() + " " + selectedLaptop.getModel(),
+                "Prośba o kontakt",
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        // Jeśli użytkownik kliknął Anuluj (null) albo zostawił puste pole, nic nie zapisujemy
+        if (clientContact != null && !clientContact.trim().isEmpty()) {
+            facade.addContactRequest(selectedBranch, selectedLaptop, clientContact.trim());
+            showInfo("Twoja prośba o kontakt została wysłana do administratora!");
+        }
+    }
+}
+
+
+
+=== PLIK: src\DataGenerator.java ===
+public class DataGenerator {
+    // Jedyna instancja tej klasy w całym programie
+    private static DataGenerator instance;
+
+    // Prywatny konstruktor blokuje tworzenie obiektów przez "new DataGenerator()"
+    private DataGenerator() {
+    }
+
+    // Globalny punkt dostępu do tej jednej instancji
+    public static DataGenerator getInstance() {
+        if (instance == null) {
+            instance = new DataGenerator();
+        }
+        return instance;
+    }
+
+    public void populate(StoreManager manager) {
+        manager.addBranch("Kraków Główny", 6);
+        manager.addBranch("Warszawa Centrum", 10);
+        manager.addBranch("Wrocław Rynek", 5);
+        manager.addBranch("Gdańsk Wrzeszcz", 4); // Celowo zostawimy tu mało lub 0 laptopów do testu sortowania
+
+        try {
+            Branch krakow = manager.getBranch("Kraków Główny");
+            krakow.addLaptop(new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY, 2022, 3500.0, 92.5, "Windows 11", 512));
+            krakow.addLaptop(new Laptop("MacBook Pro 14", "Apple", LaptopCondition.SPRAWNY, 2023, 8500.0, 99.0, "macOS", 512));
+            krakow.addLaptop(new Laptop("XPS 15", "Dell", LaptopCondition.W_NAPRAWIE, 2021, 5200.0, 84.0, "Windows 11", 1024));
+            krakow.addLaptop(new Laptop("EliteBook 840", "HP", LaptopCondition.W_TRAKCIE_TESTOW, 2020, 2100.0, 78.0, "Windows 10", 256));
+            krakow.addLaptop(new Laptop("ZenBook 14", "Asus", LaptopCondition.USZKODZONY, 2019, 1100.0, 65.0, "Windows 10", 512));
+
+            Branch warszawa = manager.getBranch("Warszawa Centrum");
+            warszawa.addLaptop(new Laptop("MacBook Air M2", "Apple", LaptopCondition.SPRAWNY, 2023, 4900.0, 97.0, "macOS", 256));
+            warszawa.addLaptop(new Laptop("Latitude 7490", "Dell", LaptopCondition.SPRAWNY, 2019, 1450.0, 81.0, "Windows 10", 256));
+            warszawa.addLaptop(new Laptop("IdeaPad 3", "Lenovo", LaptopCondition.USZKODZONY, 2020, 950.0, 70.0, "Windows 10", 256));
+            warszawa.addLaptop(new Laptop("ProBook 450", "HP", LaptopCondition.W_TRAKCIE_TESTOW, 2021, 2300.0, 88.0, "Windows 11", 512));
+
+            Branch wroclaw = manager.getBranch("Wrocław Rynek");
+            wroclaw.addLaptop(new Laptop("ROG Zephyrus", "Asus", LaptopCondition.SPRAWNY, 2022, 6200.0, 91.0, "Windows 11", 1024));
+            wroclaw.addLaptop(new Laptop("ThinkPad X1 Carbon", "Lenovo", LaptopCondition.ZAREZERWOWANY, 2022, 5800.0, 94.0, "Linux", 512));
+            wroclaw.addLaptop(new Laptop("Swift 3", "Acer", LaptopCondition.W_NAPRAWIE, 2020, 1300.0, 76.0, "Windows 11", 512));
+
+        } catch (InvalidPriceException | BranchFullException | DuplicateLaptopException e) {
+            System.err.println("Błąd podczas generowania danych testowych: " + e.getMessage());
+        }
+    }
+}
+
+
+
+=== PLIK: src\DuplicateLaptopException.java ===
+public class DuplicateLaptopException extends RuntimeException {
+    public DuplicateLaptopException(String message) {
+        super(message);
+    }
+}
+
+
+
+
+=== PLIK: src\GenericTableModel.java ===
+import javax.swing.table.AbstractTableModel;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+
+public class GenericTableModel<T> extends AbstractTableModel {
+    private List<T> data;
+    private final String[] columnNames;
+    private final List<Function<T, Object>> columnExtractors;
+
+    public GenericTableModel(String[] columnNames, List<Function<T, Object>> columnExtractors) {
+        this.data = new ArrayList<>();
+        this.columnNames = columnNames;
+        this.columnExtractors = columnExtractors;
+    }
+
+    @Override
+    public int getRowCount() {
+        return data.size();
+    }
+
+    @Override
+    public int getColumnCount() {
+        return columnNames.length;
+    }
+
+    @Override
+    public String getColumnName(int column) {
+        return columnNames[column];
+    }
+
+    @Override
+    public Object getValueAt(int rowIndex, int columnIndex) {
+        // 1. Wyciągamy obiekt z danego wiersza (np. konkretny Laptop albo Branch)
+        T item = data.get(rowIndex);
+        // 2. Uruchamiamy funkcję przypisaną do tej kolumny (np. Laptop::getPrice)
+        return columnExtractors.get(columnIndex).apply(item);
+    }
+
+    // Podmienia dane w tabeli i powiadamia JTable, że ma się przerysować
+    public void setData(List<T> newData) {
+        this.data = (newData != null) ? newData : new ArrayList<>();
+        fireTableDataChanged();
+    }
+
+    // Zwraca referencję do aktualnej listy w tabeli (kluczowe do sortowania w miejscu!)
+    public List<T> getData() {
+        return data;
+    }
+
+    // Zwraca cały obiekt T z wybranego wiersza (np. po kliknięciu w tabeli)
+    public T getItemAt(int rowIndex) {
+        if (rowIndex < 0 || rowIndex >= data.size()) {
+            return null;
+        }
+        return data.get(rowIndex);
+    }
+
+    // Ręczne odświeżenie widoku po zmianie np. kolejności na liście lub stanu obiektu
+    public void refresh() {
+        fireTableDataChanged();
+    }
+}
+
+
+
+=== PLIK: src\GenericTablePanel.java ===
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+import java.util.function.Function;
+
+public class GenericTablePanel<T> extends JPanel {
+    private final GenericTableModel<T> tableModel;
+    private final JTable table;
+
+    public GenericTablePanel(String title, String[] columnNames, List<Function<T, Object>> extractors) {
+        // BorderLayout rozciąga główny komponent (CENTER) na całą dostępną przestrzeń
+        super(new BorderLayout());
+
+        // Estetyczna ramka z tytułem tabeli
+        setBorder(BorderFactory.createTitledBorder(title));
+
+        this.tableModel = new GenericTableModel<>(columnNames, extractors);
+        this.table = new JTable(tableModel);
+
+        // Pozwalamy zaznaczać jeden wiersz naraz (wygodniejsze przy usuwaniu i podglądzie oddziału)
+        this.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        this.table.setFillsViewportHeight(true);
+
+        // JScrollPane - bez niego nie wyświetlają się nagłówki kolumn i paski przewijania
+        JScrollPane scrollPane = new JScrollPane(table);
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    public T getSelectedItem() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow == -1) {
+            return null;
+        }
+        int modelRow = table.convertRowIndexToModel(selectedRow);
+        return tableModel.getItemAt(modelRow);
+    }
+
+    public void setData(List<T> data) {
+        tableModel.setData(data);
+    }
+
+    public List<T> getData() {
+        return tableModel.getData();
+    }
+
+    public void refresh() {
+        tableModel.refresh();
+    }
+
+    public JTable getTable() {
+        return table;
+    }
+}
+
+
+
+=== PLIK: src\InvalidPriceException.java ===
+public class InvalidPriceException extends RuntimeException {
+    public InvalidPriceException(String message) {
+        super(message);
+    }
+}
+
+
+
+
+=== PLIK: src\Laptop.java ===
+public class Laptop implements Comparable<Laptop> {
+    private String model;
+    private String brand;
+    private LaptopCondition condition;
+    private int year;
+    private double price;
+    private double batteryHealth;
+    private String operatingSystem;
+    private int storageGB;
+
+    public Laptop (String model, String brand, LaptopCondition condition, int year, double price, double batteryHealth, String operatingSystem, int storageGB)
+        throws InvalidPriceException{
+            if(price < 0){
+                throw new InvalidPriceException("Cena laptopa nie może być mneijsza od 0");
+            }
+        this.model = model;
+        this.brand = brand;
+        this.condition = condition;
+        this.year = year;
+        this.price = price;
+        this.batteryHealth = batteryHealth;
+        this.operatingSystem = operatingSystem;
+        this.storageGB = storageGB;
+
+    }
+    //metoda która wybiera 2 najdrozse laptopy, wybiera starszy i przenosi do wybraego brancha
+
+    @Override
+    public String toString(){
+        return "Specyfikacja laptopa: model: " + model + ", marka: " + brand + ", kondycja: " + condition + ", " +
+                "rok produkcji: " + year + ", cena: " + price + ", kondycja baterii: " + batteryHealth + ", system operacyjny: " + operatingSystem +
+                ", pamięć: " + storageGB + "GB.";
+    }
+
+    @Override
+    public int compareTo(Laptop other){
+        int modelCompare = this.model.compareToIgnoreCase(other.model);
+        if (modelCompare != 0){
+            return modelCompare;
+        }
+        int brandCompare = this.brand.compareToIgnoreCase(other.brand);
+        if(brandCompare != 0){
+            return brandCompare;
+        }
+       return Integer.compare(this.year, other.year);
+    }
+
+    public void print(){
+        System.out.println(this);
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
+    public int getYear() {
+        return year;
+    }
+
+    public void setYear(int year) {
+        this.year = year;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) throws InvalidPriceException {
+        if (price < 0){
+            throw new InvalidPriceException("Cena laptopa nie może byc mniejsza od 0");
+        }
+        this.price = price;
+    }
+
+    public LaptopCondition getCondition() {
+        return condition;
+    }
+
+    public void setCondition(LaptopCondition condition) {
+        this.condition = condition;
+    }
+
+    public double getBatteryHealth() {
+        return batteryHealth;
+    }
+
+    public void setBatteryHealth(double batteryHealth) {
+        this.batteryHealth = batteryHealth;
+    }
+
+    public String getOperatingSystem() {
+        return operatingSystem;
+    }
+
+    public void setOperatingSystem(String operatingSystem) {
+        this.operatingSystem = operatingSystem;
+    }
+
+    public int getStorageGB() {
+        return storageGB;
+    }
+
+    public void setStorageGB(int storageGB) {
+        this.storageGB = storageGB;
+    }
+
+
+}
+
+
+
+
+=== PLIK: src\LaptopCondition.java ===
+public enum LaptopCondition {
+    SPRAWNY{
+        @Override
+        public String toString(){
+           return  "Sprawny";
+        }
+    },
+    USZKODZONY{
+        @Override
+        public String toString() {
+            return "Uszkodzony";
+        }
+    },
+    W_NAPRAWIE{
+        @Override
+        public String toString() {
+            return "W naprawie";
+        }
+    },
+    W_TRAKCIE_TESTOW{
+    @Override
+    public String toString() {
+        return "W trakcie testów";
+    }
+    },
+    ZAREZERWOWANY{
+        @Override
+        public String toString() {
+            return "Zarezerwowany";
+        }
+    }
+}
+
+
+
+
+=== PLIK: src\LaptopNotFoundException.java ===
+public class LaptopNotFoundException extends RuntimeException {
+    public LaptopNotFoundException(String message) {
+        super(message);
+    }
+}
+
+
+
+
+=== PLIK: src\LoginFrame.java ===
+import javax.swing.*;
+import java.awt.*;
+
+public class LoginFrame extends JFrame {
+    private final StoreFacade facade;
+    private final JTextField loginField;
+    private final JPasswordField passwordField;
+
+    public LoginFrame(StoreFacade facade) {
+        super("Logowanie - Sieć Sklepów z Laptopami");
+        this.facade = facade;
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(400, 260);
+        setLocationRelativeTo(null);
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Nagłówek zajmujący 2 kolumny
+        JLabel titleLabel = new JLabel("System zarządzania sklepem", SwingConstants.CENTER);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(titleLabel, gbc);
+
+        // Wiersz 1: Login
+        gbc.gridwidth = 1;
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        panel.add(new JLabel("Login:"), gbc);
+
+        loginField = new JTextField(15);
+        gbc.gridx = 1;
+        panel.add(loginField, gbc);
+
+        // Wiersz 2: Hasło
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        panel.add(new JLabel("Hasło:"), gbc);
+
+        passwordField = new JPasswordField(15);
+        gbc.gridx = 1;
+        panel.add(passwordField, gbc);
+
+        // Wiersz 3: Przycisk logowania (Enter w polu hasła też go uruchomi!)
+        JButton loginButton = new JButton("Zaloguj");
+        loginButton.addActionListener(e -> handleLogin());
+        passwordField.addActionListener(e -> handleLogin());
+
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        panel.add(loginButton, gbc);
+
+        // Wiersz 4: Podpowiedź kont do szybkiego testowania na zaliczeniu
+        JLabel hintLabel = new JLabel("Konta: admin / admin  |  klient / klient", SwingConstants.CENTER);
+        hintLabel.setForeground(Color.GRAY);
+        gbc.gridy = 4;
+        panel.add(hintLabel, gbc);
+
+        add(panel);
+    }
+
+    private void handleLogin() {
+        String login = loginField.getText().trim();
+        String password = new String(passwordField.getPassword());
+
+        // Akcja powrotu po kliknięciu "Wyloguj" w panelu admina lub klienta
+        Runnable returnToLogin = () -> new LoginFrame(facade).setVisible(true);
+
+        if (login.equals("admin") && password.equals("admin")) {
+            dispose();
+            new AdminFrame(facade, returnToLogin).setVisible(true);
+        } else if (login.equals("klient") && password.equals("klient")) {
+            dispose();
+            new ClientFrame(facade, returnToLogin).setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Nieprawidłowy login lub hasło!\nUżyj: admin/admin lub klient/klient",
+                    "Błąd logowania",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+
+
+
+=== PLIK: src\Main.java ===
+import javax.swing.*;
+
+public class Main {
+    public static void main(String[] args) {
+        // Tworzymy jedną instancję Fasady (od razu ładuje dane z Singletona DataGenerator)
+        StoreFacade facade = new StoreFacade();
+
+        // Bezpieczne uruchomienie interfejsu w wątku zdarzeń Swinga (EDT)
+        SwingUtilities.invokeLater(() -> {
+            LoginFrame loginFrame = new LoginFrame(facade);
+            loginFrame.setVisible(true);
+        });
+    }
+}
+
+
+
+=== PLIK: src\StoreFacade.java ===
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+public class StoreFacade {
+    private final StoreManager storeManager;
+    private final List<String> contactRequests;
+
+    // Konstruktor używany przez aplikację (ładuje dane startowe z Singletona)
+    public StoreFacade() {
+        this.storeManager = new StoreManager();
+        this.contactRequests = new ArrayList<>();
+        DataGenerator.getInstance().populate(this.storeManager);
+    }
+
+    // Konstruktor używany np. w testach JUnit (pozwala wstrzyknąć pusty StoreManager)
+    public StoreFacade(StoreManager storeManager) {
+        this.storeManager = storeManager;
+        this.contactRequests = new ArrayList<>();
+    }
+
+    // --- OPERACJE NA ODDZIAŁACH ---
+
+    public List<Branch> getAllBranches() {
+        return storeManager.getAllBranches();
+    }
+
+    public void addBranch(String name, int capacity) {
+        storeManager.addBranch(name, capacity);
+    }
+
+    public void removeBranch(String name) {
+        storeManager.removeBranch(name);
+    }
+
+    // Sortuje przekazaną listę oddziałów w miejscu malejąco po aktualnym zapełnieniu (%)
+    public void sortBranchesByLoad(List<Branch> branches) {
+        branches.sort(Comparator.comparingDouble(Branch::getCurrentLoad).reversed());
+    }
+
+    // --- OPERACJE NA LAPTOPACH (ADMIN) ---
+
+    public List<Laptop> getLaptopsInBranch(Branch branch) {
+        if (branch == null) {
+            return new ArrayList<>();
+        }
+        return branch.getLaptopList();
+    }
+
+    public void addLaptopToBranch(Branch branch, Laptop laptop)
+            throws BranchFullException, DuplicateLaptopException, LaptopNotFoundException {
+        if (branch == null) {
+            throw new LaptopNotFoundException("Nie wybrano oddziału.");
+        }
+        branch.addLaptop(laptop);
+    }
+
+    public void removeLaptopFromBranch(Branch branch, Laptop laptop)
+            throws LaptopNotFoundException {
+        if (branch == null || laptop == null) {
+            throw new LaptopNotFoundException("Nie wybrano oddziału lub laptopa.");
+        }
+        branch.removeLaptop(laptop);
+    }
+
+    public void updateLaptopCondition(Laptop laptop, LaptopCondition newCondition)
+            throws LaptopNotFoundException {
+        if (laptop == null) {
+            throw new LaptopNotFoundException("Nie wybrano laptopa.");
+        }
+        laptop.setCondition(newCondition);
+    }
+
+    public void updateLaptopPrice(Laptop laptop, double newPrice)
+            throws LaptopNotFoundException, InvalidPriceException {
+        if (laptop == null) {
+            throw new LaptopNotFoundException("Nie wybrano laptopa.");
+        }
+        laptop.setPrice(newPrice);
+    }
+
+    // --- FILTROWANIE I OPERACJE KLIENTA ---
+
+    // Łączy działanie pola filter textbox (tekst) oraz condition combobox (stan)
+    public List<Laptop> filterLaptops(Branch branch, String query, LaptopCondition condition) {
+        if (branch == null) {
+            return new ArrayList<>();
+        }
+
+        // Krok 1: filtr po tekście (model lub marka) z Twojej metody searchPartial
+        List<Laptop> filtered;
+        if (query == null || query.trim().isEmpty()) {
+            filtered = new ArrayList<>(branch.getLaptopList());
+        } else {
+            filtered = branch.searchPartial(query.trim());
+        }
+
+        // Krok 2: jeśli w ComboBox wybrano konkretny stan (nie "Wszystkie"), zawężamy wynik
+        if (condition != null) {
+            filtered.removeIf(laptop -> laptop.getCondition() != condition);
+        }
+
+        return filtered;
+    }
+
+    public void reserveLaptop(Laptop laptop) throws LaptopNotFoundException {
+        if (laptop == null) {
+            throw new LaptopNotFoundException("Nie wybrano laptopa do rezerwacji.");
+        }
+        laptop.setCondition(LaptopCondition.ZAREZERWOWANY);
+    }
+
+    public void addContactRequest(Branch branch, Laptop laptop, String clientInfo) {
+        String entry = String.format("[%s] %s %s (%.2f zł) - Kontakt: %s",
+                branch.getBranchName(), laptop.getBrand(), laptop.getModel(), laptop.getPrice(), clientInfo);
+        contactRequests.add(entry);
+    }
+
+    public List<String> getContactRequests() {
+        return new ArrayList<>(contactRequests);
+    }
+}
+
+
+
+=== PLIK: src\StoreManager.java ===
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class StoreManager {
+    private Map<String, Branch> branches;
+
+    public StoreManager(){
+         this.branches = new HashMap<>();
+    }
+
+    public void addBranch(String name, int capacity){
+        branches.put(name, new Branch(name,capacity));
+    }
+
+    public void removeBranch(String name){
+        branches.remove(name);
+    }
+
+    public List<Branch> findEmpty() {
+        List<Branch> emptyBranches = new ArrayList<>();
+        for (Branch b : branches.values()) {
+            if (b.isEmpty()) {
+                emptyBranches.add(b);
+            }
+        }
+        return emptyBranches;
+    }
+
+    public void summary(){
+        System.out.println("Zestawienie oddziałów:");
+
+        for (Branch b : branches.values()) {
+            double percent = 0.0;
+            if(b.getMaxCapacity() > 0){
+                percent = ((double) b.getLaptopCount() / b.getMaxCapacity() * 100.0);
+                System.out.printf("Oddział: %s | Zapełnienie: %.2f%%%n", b.getBranchName(), percent);
+            }
+        }
+    }
+
+    public Branch getBranch(String name) {
+
+        return branches.get(name);
+    }
+
+    public void transferLaptop(Laptop laptop, String fromBranch, String toBranch)
+            throws LaptopNotFoundException, BranchFullException, DuplicateLaptopException {
+        Branch from = branches.get(fromBranch);
+        Branch to = branches.get(toBranch);
+
+        if (from == null || to == null){
+            throw new LaptopNotFoundException("Oddział źródłowy lub docelowy nie istnieje.");
+        }
+        from.removeLaptop(laptop);
+        try {
+            to.addLaptop(laptop);
+        } catch (BranchFullException | DuplicateLaptopException e){
+            from.addLaptop(laptop); // Cofamy usunięcie, jeśli dodanie do celu się nie udało
+            throw e;
+        }
+    }
+
+    public double totalValue(String branchName) {
+        Branch b = branches.get(branchName);
+        return (b != null) ? b.totalValue() : 0;
+    }
+
+    public int countByBrand(String brand) {
+        int count = 0;
+        for (Branch b : branches.values()) {
+            count += b.countByBrand(brand);
+        }
+        return count;
+    }
+    public List<Branch> getAllBranches() {
+        return new ArrayList<>(branches.values());
+    }
+
+}
+
+
+
+
+=== PLIK: test\AllTestsSuite.java ===
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
+
+@Suite
+@SelectClasses({
+        LaptopTest.class,
+        BranchTest.class,
+        StoreManagerTest.class,
+        StoreFacadeTest.class,
+        GenericTableModelTest.class
+})
+public class AllTestsSuite {
+}
+
+
+
+=== PLIK: test\BranchTest.java ===
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class BranchTest {
+
+    private Branch branch;
+    private Laptop lenovo;
+    private Laptop apple;
+    private Laptop dell;
+
+    @BeforeEach
+    void setUp() throws InvalidPriceException {
+        branch = new Branch("Kraków Główny", 3);
+        lenovo = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY, 2022, 3500.0, 92.0, "Windows 11", 512);
+        apple = new Laptop("MacBook Pro", "Apple", LaptopCondition.SPRAWNY, 2023, 8500.0, 99.0, "macOS", 512);
+        dell = new Laptop("XPS 15", "Dell", LaptopCondition.USZKODZONY, 2021, 5000.0, 80.0, "Windows 11", 1024);
+    }
+
+    @Test
+    void shouldAddLaptopsAndCalculateLoadCorrectly() throws Exception {
+        assertTrue(branch.isEmpty());
+        assertEquals(0.0, branch.getCurrentLoad());
+
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+
+        assertFalse(branch.isEmpty());
+        assertEquals(2, branch.getLaptopCount());
+        assertEquals(3, branch.getMaxCapacity());
+        assertEquals("Kraków Główny", branch.getBranchName());
+        assertEquals(2.0 / 3.0 * 100.0, branch.getCurrentLoad(), 0.01);
+    }
+
+    @Test
+    void shouldReturnZeroLoadWhenMaxCapacityIsZero() {
+        Branch zeroCap = new Branch("Pusty", 0);
+        assertEquals(0.0, zeroCap.getCurrentLoad());
+    }
+
+    @Test
+    void shouldThrowBranchFullExceptionWhenCapacityExceeded() throws Exception {
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+        branch.addLaptop(dell);
+
+        Laptop extra = new Laptop("ZenBook", "Asus", LaptopCondition.SPRAWNY, 2022, 4000.0, 90.0, "Windows 11", 512);
+        assertThrows(BranchFullException.class, () -> branch.addLaptop(extra));
+    }
+
+    @Test
+    void shouldThrowDuplicateLaptopExceptionWhenAddingSameLaptop() throws Exception {
+        branch.addLaptop(lenovo);
+        Laptop duplicate = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.W_NAPRAWIE, 2022, 2000.0, 70.0, "Linux", 256);
+
+        assertThrows(DuplicateLaptopException.class, () -> branch.addLaptop(duplicate));
+    }
+
+    @Test
+    void shouldRemoveAndSellLaptopOrThrowNotFound() throws Exception {
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+
+        branch.removeLaptop(lenovo);
+        assertEquals(1, branch.getLaptopCount());
+
+        branch.sellLaptop(apple);
+        assertTrue(branch.isEmpty());
+
+        assertThrows(LaptopNotFoundException.class, () -> branch.removeLaptop(dell));
+        assertThrows(LaptopNotFoundException.class, () -> branch.sellLaptop(dell));
+    }
+
+    @Test
+    void shouldChangeConditionAndYear() {
+        branch.changeCondition(lenovo, LaptopCondition.W_NAPRAWIE);
+        branch.changeYear(lenovo, 2020);
+
+        assertEquals(LaptopCondition.W_NAPRAWIE, lenovo.getCondition());
+        assertEquals(2020, lenovo.getYear());
+    }
+
+    @Test
+    void shouldCountByConditionAndBrandAndCalculateTotalValue() throws Exception {
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+        branch.addLaptop(dell);
+
+        assertEquals(2, branch.countByCondition(LaptopCondition.SPRAWNY));
+        assertEquals(1, branch.countByCondition(LaptopCondition.USZKODZONY));
+        assertEquals(1, branch.countByBrand("lenovo"));
+        assertEquals(17000.0, branch.totalValue(), 0.01);
+    }
+
+    @Test
+    void shouldSortByNameAndSortByPrice() throws Exception {
+        branch.addLaptop(dell);   // XPS 15, 5000
+        branch.addLaptop(lenovo); // ThinkPad T14, 3500
+        branch.addLaptop(apple);  // MacBook Pro, 8500
+
+        List<Laptop> byName = branch.sortByName();
+        assertEquals("MacBook Pro", byName.get(0).getModel());
+        assertEquals("ThinkPad T14", byName.get(1).getModel());
+        assertEquals("XPS 15", byName.get(2).getModel());
+
+        List<Laptop> byPrice = branch.sortByPrice();
+        assertEquals(3500.0, byPrice.get(0).getPrice());
+        assertEquals(5000.0, byPrice.get(1).getPrice());
+        assertEquals(8500.0, byPrice.get(2).getPrice());
+    }
+
+    @Test
+    void shouldSearchExactAndSearchPartialByModelOrBrand() throws Exception {
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+        branch.addLaptop(dell);
+
+        assertEquals(1, branch.search("thinkpad t14").size());
+        assertEquals(1, branch.searchPartial("book").size());   // po modelu
+        assertEquals(1, branch.searchPartial("dell").size());   // po marce
+        assertTrue(branch.searchPartial("nieistnieje").isEmpty());
+    }
+
+    @Test
+    void shouldReturnMaxPricedLaptopOrNullWhenEmpty() throws Exception {
+        assertNull(branch.max());
+
+        branch.addLaptop(lenovo);
+        branch.addLaptop(apple);
+        branch.addLaptop(dell);
+
+        assertEquals(apple, branch.max());
+        assertDoesNotThrow(() -> branch.summary());
+    }
+
+    @Test
+    void shouldTransferOldestOfTwoExpensiveAndHandleErrors() throws Exception {
+        Branch target = new Branch("Warszawa", 2);
+
+        // Za mało laptopów (< 2)
+        branch.addLaptop(apple);
+        assertThrows(LaptopNotFoundException.class, () -> branch.transferOldestOfTwoExpensive(target));
+        assertThrows(LaptopNotFoundException.class, () -> branch.transferOldestOfTwoExpensive(null));
+
+        // 2 najdroższe: apple (8500, 2023) i dell (5000, 2021) -> starszy to dell
+        branch.addLaptop(lenovo);
+        branch.addLaptop(dell);
+        branch.transferOldestOfTwoExpensive(target);
+
+        assertEquals(2, branch.getLaptopCount());
+        assertEquals(1, target.getLaptopCount());
+        assertTrue(target.getLaptopList().contains(dell));
+
+        // Pełny oddział docelowy
+        Branch fullTarget = new Branch("Pełny", 0);
+        assertThrows(BranchFullException.class, () -> branch.transferOldestOfTwoExpensive(fullTarget));
+    }
+}
+
+
+
+=== PLIK: test\GenericTableModelTest.java ===
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class GenericTableModelTest {
+
+    @Test
+    void shouldExposeColumnsRowsAndValuesForGenericType() throws InvalidPriceException {
+        GenericTableModel<Laptop> model = new GenericTableModel<>(
+                new String[]{"Marka", "Model", "Cena"},
+                List.of(Laptop::getBrand, Laptop::getModel, Laptop::getPrice)
+        );
+
+        assertEquals(3, model.getColumnCount());
+        assertEquals("Marka", model.getColumnName(0));
+        assertEquals(0, model.getRowCount());
+        assertNull(model.getItemAt(0));
+
+        Laptop l1 = new Laptop("ThinkPad", "Lenovo", LaptopCondition.SPRAWNY, 2022, 3000.0, 90.0, "Linux", 512);
+        model.setData(List.of(l1));
+
+        assertEquals(1, model.getRowCount());
+        assertEquals("Lenovo", model.getValueAt(0, 0));
+        assertEquals("ThinkPad", model.getValueAt(0, 1));
+        assertEquals(3000.0, model.getValueAt(0, 2));
+        assertEquals(l1, model.getItemAt(0));
+        assertNull(model.getItemAt(-1));
+        assertNull(model.getItemAt(5));
+        assertEquals(1, model.getData().size());
+
+        // Obsługa null w setData i refresh
+        model.setData(null);
+        assertEquals(0, model.getRowCount());
+        assertDoesNotThrow(model::refresh);
+    }
+}
+
+
+
+=== PLIK: test\LaptopTest.java ===
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class LaptopTest {
+
+    private Laptop laptop;
+
+    // Test Fixture: przed każdym testem tworzymy świeży, czysty obiekt Laptop
+    @BeforeEach
+    void setUp() throws InvalidPriceException {
+        laptop = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY,
+                2022, 3500.0, 92.5, "Windows 11", 512);
+    }
+
+    @Test
+    void shouldCreateLaptopWithValidFields() {
+        assertEquals("ThinkPad T14", laptop.getModel());
+        assertEquals("Lenovo", laptop.getBrand());
+        assertEquals(LaptopCondition.SPRAWNY, laptop.getCondition());
+        assertEquals(2022, laptop.getYear());
+        assertEquals(3500.0, laptop.getPrice());
+        assertEquals(92.5, laptop.getBatteryHealth());
+        assertEquals("Windows 11", laptop.getOperatingSystem());
+        assertEquals(512, laptop.getStorageGB());
+    }
+
+    @Test
+    void shouldThrowInvalidPriceExceptionWhenCreatingWithNegativePrice() {
+        // Sprawdzamy, czy konstruktor rzuci nasz własny wyjątek dla ceny < 0
+        assertThrows(InvalidPriceException.class, () ->
+                new Laptop("MacBook", "Apple", LaptopCondition.SPRAWNY,
+                        2023, -100.0, 95.0, "macOS", 512)
+        );
+    }
+
+    @Test
+    void shouldUpdateFieldsUsingSetters() throws InvalidPriceException {
+        laptop.setModel("XPS 15");
+        laptop.setBrand("Dell");
+        laptop.setCondition(LaptopCondition.W_NAPRAWIE);
+        laptop.setYear(2023);
+        laptop.setPrice(5000.0);
+        laptop.setBatteryHealth(88.0);
+        laptop.setOperatingSystem("Linux");
+        laptop.setStorageGB(1024);
+
+        assertEquals("XPS 15", laptop.getModel());
+        assertEquals("Dell", laptop.getBrand());
+        assertEquals(LaptopCondition.W_NAPRAWIE, laptop.getCondition());
+        assertEquals(2023, laptop.getYear());
+        assertEquals(5000.0, laptop.getPrice());
+        assertEquals(88.0, laptop.getBatteryHealth());
+        assertEquals("Linux", laptop.getOperatingSystem());
+        assertEquals(1024, laptop.getStorageGB());
+    }
+
+    @Test
+    void shouldThrowInvalidPriceExceptionWhenSettingNegativePrice() {
+        assertThrows(InvalidPriceException.class, () -> laptop.setPrice(-1.0));
+    }
+
+    @Test
+    void shouldCompareLaptopsByModelThenBrandThenYear() throws InvalidPriceException {
+        Laptop sameLaptop = new Laptop("thinkpad t14", "lenovo", LaptopCondition.USZKODZONY,
+                2022, 1000.0, 50.0, "Linux", 256);
+        Laptop differentModel = new Laptop("ZenBook", "Asus", LaptopCondition.SPRAWNY,
+                2022, 3500.0, 90.0, "Windows 11", 512);
+        Laptop sameModelDifferentBrand = new Laptop("ThinkPad T14", "Acer", LaptopCondition.SPRAWNY,
+                2022, 3500.0, 90.0, "Windows 11", 512);
+        Laptop newerSameModelAndBrand = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY,
+                2024, 4000.0, 99.0, "Windows 11", 512);
+
+        // Identyczny model, marka (ignorując wielkość liter) i rok -> 0
+        assertEquals(0, laptop.compareTo(sameLaptop));
+        // "ThinkPad T14" < "ZenBook" -> wynik ujemny
+        assertTrue(laptop.compareTo(differentModel) < 0);
+        // Ten sam model, ale "Lenovo" > "Acer" -> wynik dodatni
+        assertTrue(laptop.compareTo(sameModelDifferentBrand) > 0);
+        // Ten sam model i marka, ale 2022 < 2024 -> wynik ujemny
+        assertTrue(laptop.compareTo(newerSameModelAndBrand) < 0);
+    }
+
+    @Test
+    void shouldFormatToStringAndPrintWithoutErrors() {
+        String text = laptop.toString();
+        assertTrue(text.contains("ThinkPad T14"));
+        assertTrue(text.contains("Lenovo"));
+        assertTrue(text.contains("Sprawny"));
+        assertDoesNotThrow(() -> laptop.print());
+    }
+
+    @Test
+    void shouldReturnCorrectConditionStrings() {
+        assertEquals("Sprawny", LaptopCondition.SPRAWNY.toString());
+        assertEquals("Uszkodzony", LaptopCondition.USZKODZONY.toString());
+        assertEquals("W naprawie", LaptopCondition.W_NAPRAWIE.toString());
+        assertEquals("W trakcie testów", LaptopCondition.W_TRAKCIE_TESTOW.toString());
+        assertEquals("Zarezerwowany", LaptopCondition.ZAREZERWOWANY.toString());
+    }
+}
+
+
+
+=== PLIK: test\StoreFacadeTest.java ===
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class StoreFacadeTest {
+
+    private StoreFacade facade;
+
+    @BeforeEach
+    void setUp() {
+        // Konstruktor domyślny automatycznie ładuje dane z DataGenerator
+        facade = new StoreFacade();
+    }
+
+    @Test
+    void shouldInitializeWithDataAndSupportCustomManagerConstructor() {
+        assertEquals(4, facade.getAllBranches().size());
+
+        StoreFacade emptyFacade = new StoreFacade(new StoreManager());
+        assertTrue(emptyFacade.getAllBranches().isEmpty());
+    }
+
+    @Test
+    void shouldAddRemoveAndSortBranchesByLoad() {
+        facade.addBranch("Poznań", 5);
+        assertEquals(5, facade.getAllBranches().size());
+
+        facade.removeBranch("Poznań");
+        assertEquals(4, facade.getAllBranches().size());
+
+        List<Branch> branches = facade.getAllBranches();
+        facade.sortBranchesByLoad(branches);
+
+        // Po sortowaniu malejąco każdy kolejny oddział ma zapełnienie <= poprzedniego
+        for (int i = 0; i < branches.size() - 1; i++) {
+            assertTrue(branches.get(i).getCurrentLoad() >= branches.get(i + 1).getCurrentLoad());
+        }
+    }
+
+    @Test
+    void shouldAddRemoveAndUpdateLaptopsThroughFacade() throws Exception {
+        Branch gdansk = facade.getAllBranches().stream()
+                .filter(b -> b.getBranchName().equals("Gdańsk Wrzeszcz"))
+                .findFirst().orElseThrow();
+
+        Laptop newLaptop = new Laptop("Pavilion", "HP", LaptopCondition.SPRAWNY, 2022, 2800.0, 90.0, "Windows 11", 512);
+        facade.addLaptopToBranch(gdansk, newLaptop);
+        assertEquals(1, facade.getLaptopsInBranch(gdansk).size());
+
+        facade.updateLaptopCondition(newLaptop, LaptopCondition.W_NAPRAWIE);
+        assertEquals(LaptopCondition.W_NAPRAWIE, newLaptop.getCondition());
+
+        facade.updateLaptopPrice(newLaptop, 2400.0);
+        assertEquals(2400.0, newLaptop.getPrice());
+
+        facade.reserveLaptop(newLaptop);
+        assertEquals(LaptopCondition.ZAREZERWOWANY, newLaptop.getCondition());
+
+        facade.removeLaptopFromBranch(gdansk, newLaptop);
+        assertTrue(facade.getLaptopsInBranch(gdansk).isEmpty());
+    }
+
+    @Test
+    void shouldThrowExceptionsOnNullInputsInFacade() throws InvalidPriceException {
+        Laptop laptop = new Laptop("Test", "Dell", LaptopCondition.SPRAWNY, 2022, 1000.0, 90.0, "Linux", 256);
+
+        assertTrue(facade.getLaptopsInBranch(null).isEmpty());
+        assertThrows(LaptopNotFoundException.class, () -> facade.addLaptopToBranch(null, laptop));
+        assertThrows(LaptopNotFoundException.class, () -> facade.removeLaptopFromBranch(null, laptop));
+        assertThrows(LaptopNotFoundException.class, () -> facade.updateLaptopCondition(null, LaptopCondition.SPRAWNY));
+        assertThrows(LaptopNotFoundException.class, () -> facade.updateLaptopPrice(null, 1500.0));
+        assertThrows(LaptopNotFoundException.class, () -> facade.reserveLaptop(null));
+    }
+
+    @Test
+    void shouldFilterLaptopsByQueryAndCondition() {
+        Branch krakow = facade.getAllBranches().stream()
+                .filter(b -> b.getBranchName().equals("Kraków Główny"))
+                .findFirst().orElseThrow();
+
+        // Brak oddziału -> pusta lista
+        assertTrue(facade.filterLaptops(null, "Lenovo", LaptopCondition.SPRAWNY).isEmpty());
+
+        // Pusty filtr i brak stanu -> wszystkie laptopy w Krakowie (5 szt.)
+        assertEquals(5, facade.filterLaptops(krakow, "", null).size());
+
+        // Tylko stan SPRAWNY -> ThinkPad T14 i MacBook Pro 14 (2 szt.)
+        assertEquals(2, facade.filterLaptops(krakow, "   ", LaptopCondition.SPRAWNY).size());
+
+        // Jednocześnie tekst "lenovo" + stan SPRAWNY -> tylko 1 szt.
+        List<Laptop> combined = facade.filterLaptops(krakow, "lenovo", LaptopCondition.SPRAWNY);
+        assertEquals(1, combined.size());
+        assertEquals("ThinkPad T14", combined.get(0).getModel());
+
+        // Oryginalna lista w oddziale NIE mogła zostać uszczuplona przez filtrowanie
+        assertEquals(5, krakow.getLaptopCount());
+    }
+
+    @Test
+    void shouldSaveAndReturnContactRequests() {
+        Branch krakow = facade.getAllBranches().stream()
+                .filter(b -> b.getBranchName().equals("Kraków Główny"))
+                .findFirst().orElseThrow();
+        Laptop laptop = facade.getLaptopsInBranch(krakow).get(0);
+
+        assertTrue(facade.getContactRequests().isEmpty());
+        facade.addContactRequest(krakow, laptop, "jan@kowalski.pl");
+
+        List<String> requests = facade.getContactRequests();
+        assertEquals(1, requests.size());
+        assertTrue(requests.get(0).contains("jan@kowalski.pl"));
+    }
+}
+
+
+
+=== PLIK: test\StoreManagerTest.java ===
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class StoreManagerTest {
+
+    private StoreManager manager;
+    private Laptop laptop1;
+    private Laptop laptop2;
+
+    @BeforeEach
+    void setUp() throws InvalidPriceException {
+        manager = new StoreManager();
+        manager.addBranch("Kraków", 2);
+        manager.addBranch("Warszawa", 1);
+        manager.addBranch("Gdańsk", 3);
+
+        laptop1 = new Laptop("ThinkPad T14", "Lenovo", LaptopCondition.SPRAWNY, 2022, 3500.0, 90.0, "Windows 11", 512);
+        laptop2 = new Laptop("MacBook Air", "Apple", LaptopCondition.SPRAWNY, 2023, 5000.0, 98.0, "macOS", 256);
+    }
+
+    @Test
+    void shouldAddGetAndRemoveBranches() {
+        assertEquals(3, manager.getAllBranches().size());
+        assertNotNull(manager.getBranch("Kraków"));
+
+        manager.removeBranch("Gdańsk");
+        assertNull(manager.getBranch("Gdańsk"));
+        assertEquals(2, manager.getAllBranches().size());
+    }
+
+    @Test
+    void shouldFindEmptyBranchesAndPrintSummary() throws Exception {
+        manager.getBranch("Kraków").addLaptop(laptop1);
+
+        List<Branch> empty = manager.findEmpty();
+        assertEquals(2, empty.size());
+        assertDoesNotThrow(() -> manager.summary());
+    }
+
+    @Test
+    void shouldCalculateTotalValueAndCountByBrand() throws Exception {
+        manager.getBranch("Kraków").addLaptop(laptop1);
+        manager.getBranch("Warszawa").addLaptop(laptop2);
+
+        assertEquals(3500.0, manager.totalValue("Kraków"), 0.01);
+        assertEquals(0.0, manager.totalValue("Nieistniejący"), 0.01);
+        assertEquals(1, manager.countByBrand("Lenovo"));
+        assertEquals(1, manager.countByBrand("Apple"));
+        assertEquals(0, manager.countByBrand("Dell"));
+    }
+
+    @Test
+    void shouldTransferLaptopBetweenBranches() throws Exception {
+        manager.getBranch("Kraków").addLaptop(laptop1);
+
+        manager.transferLaptop(laptop1, "Kraków", "Warszawa");
+
+        assertEquals(0, manager.getBranch("Kraków").getLaptopCount());
+        assertEquals(1, manager.getBranch("Warszawa").getLaptopCount());
+    }
+
+    @Test
+    void shouldRollbackTransferWhenTargetBranchIsFullOrMissing() throws Exception {
+        manager.getBranch("Kraków").addLaptop(laptop1);
+        manager.getBranch("Warszawa").addLaptop(laptop2); // Warszawa ma pojemność 1 -> pełna
+
+        // Próba przeniesienia do pełnego oddziału -> wyjątek, ale laptop1 zostaje w Krakowie
+        assertThrows(BranchFullException.class, () -> manager.transferLaptop(laptop1, "Kraków", "Warszawa"));
+        assertEquals(1, manager.getBranch("Kraków").getLaptopCount());
+
+        // Próba przeniesienia do nieistniejącego oddziału
+        assertThrows(LaptopNotFoundException.class, () -> manager.transferLaptop(laptop1, "Kraków", "Poznań"));
+        assertThrows(LaptopNotFoundException.class, () -> manager.transferLaptop(laptop1, "Poznań", "Warszawa"));
+    }
+
+    @Test
+    void shouldVerifyDataGeneratorSingletonAndPopulate() {
+        DataGenerator g1 = DataGenerator.getInstance();
+        DataGenerator g2 = DataGenerator.getInstance();
+        // Singleton musi zwracać dokładnie tę samą referencję w pamięci
+        assertSame(g1, g2);
+
+        StoreManager populated = new StoreManager();
+        g1.populate(populated);
+        assertEquals(4, populated.getAllBranches().size());
+        assertTrue(populated.getBranch("Kraków Główny").getLaptopCount() > 0);
+    }
+}
+
+
+
