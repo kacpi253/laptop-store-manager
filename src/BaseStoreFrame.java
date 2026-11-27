@@ -81,6 +81,7 @@ public abstract class BaseStoreFrame extends JFrame {
         conditionComboBox.addActionListener(e -> refreshLaptopTable());
         filterPanel.add(conditionComboBox);
 
+
         laptopTablePanel = new GenericTablePanel<>(
                 "Laptopy w wybranym oddziale",
                 new String[]{"Marka", "Model", "Stan", "Rok", "Cena (PLN)", "Bateria (%)", "System", "Dysk (GB)"},
@@ -95,6 +96,14 @@ public abstract class BaseStoreFrame extends JFrame {
                         Laptop::getStorageGB
                 )
         );
+
+        JButton sortByPriceButton = new JButton("Sortuj wg ceny");
+        sortByPriceButton.addActionListener(e -> {
+            facade.sortLaptopsByPrice(laptopTablePanel.getData());
+            laptopTablePanel.refresh();
+        });
+        filterPanel.add(sortByPriceButton);
+
 
         JPanel laptopBottomSection = new JPanel(new BorderLayout(5, 5));
         laptopBottomSection.add(filterPanel, BorderLayout.NORTH);
@@ -129,6 +138,8 @@ public abstract class BaseStoreFrame extends JFrame {
         branchTablePanel.setData(facade.getAllBranches());
         refreshLaptopTable();
     }
+
+
 
     protected void refreshLaptopTable() {
         Branch selectedBranch = branchTablePanel.getSelectedItem();

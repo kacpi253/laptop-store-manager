@@ -116,6 +116,14 @@ public class StoreFacade {
         contactRequests.add(entry);
     }
 
+    //sortowanie po cenie
+    public void sortLaptopsByPrice(List<Laptop> laptops) {
+        if (laptops != null) {
+            laptops.sort(Comparator.comparingDouble(Laptop::getPrice));
+        }
+    }
+
+
     public List<String> getContactRequests() {
         return new ArrayList<>(contactRequests);
     }

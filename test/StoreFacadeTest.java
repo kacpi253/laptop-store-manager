@@ -100,6 +100,21 @@ public class StoreFacadeTest {
     }
 
     @Test
+    void shouldSortLaptopsByPriceAscending() {
+        Branch krakow = facade.getAllBranches().stream()
+                .filter(b -> b.getBranchName().equals("Kraków Główny"))
+                .findFirst().orElseThrow();
+
+        List<Laptop> laptops = facade.filterLaptops(krakow, "", null);
+        facade.sortLaptopsByPrice(laptops);
+
+        for (int i = 0; i < laptops.size() - 1; i++) {
+            assertTrue(laptops.get(i).getPrice() <= laptops.get(i + 1).getPrice());
+        }
+    }
+
+
+    @Test
     void shouldSaveAndReturnContactRequests() {
         Branch krakow = facade.getAllBranches().stream()
                 .filter(b -> b.getBranchName().equals("Kraków Główny"))
